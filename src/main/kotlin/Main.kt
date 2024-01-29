@@ -10,7 +10,7 @@ var minTimeBetweenBatteries: Int = 30 //can be changed via command line argument
  */
 fun main(args: Array<String>) {
     rootDir = args[0]
-    minTimeBetweenBatteries = args[1].toInt()
+    if (args.size >= 2) minTimeBetweenBatteries = args[1].toInt()
 
     val results = mutableListOf<Pair<String, Int>>()
     File(rootDir).walk().forEach {
