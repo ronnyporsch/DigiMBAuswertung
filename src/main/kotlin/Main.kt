@@ -1,37 +1,37 @@
 import java.io.File
+import kotlin.math.abs
 
 lateinit var rootPath: String
 const val minTimeBetweenBatteries = 30
 
 fun main(args: Array<String>) {
     rootPath = args[0]
-    val results = mutableListOf<Triple<String, Pair<Int, Int>, Int>>()
+    val results = mutableListOf<Pair<String, Int>>()
     File(rootPath).walk().forEach {
 
         if (it.isDirectory && (it.name == "bayes" || it.name == "default")) {
-            val pair = evalAlgorithm(it)
-            val diff = pair.second - pair.first
-            val result = Triple(it.path, evalAlgorithm(it), diff)
+            val result = Pair(it.path, evalAlgorithm(it))
             results.add(result)
         }
     }
-    results.sortBy { kotlin.math.abs(it.third) }
+    results.sortBy { abs(it.second) }
     results.forEach {
         println(it)
     }
 }
 
 
-fun evalAlgorithm(dir: File): Pair<Int, Int> {
-    var modelPair = Pair(0, 0)
+fun evalAlgorithm(dir: File): Int {
+    var errorCounter = 0
     dir.walk().forEach {
         if (it.isFile && it.extension == "txt") {
             if (it.name.contains("SSG_montage2")) return@forEach
             val counts = countModelAndVideoOccurrencesInFile(it)
-            modelPair = Pair(modelPair.first + counts.first, modelPair.second + counts.second)
+            val errors = abs(counts.first-counts.second)
+            errorCounter += errors
         }
     }
-    return modelPair
+    return errorCounter
 }
 
 fun countModelAndVideoOccurrencesInFile(file: File): Pair<Int, Int> {
@@ -89,3 +89,13 @@ fun countWordOccurrencesInString(str: String, searchStr: String): Int {
     }
     return count
 }
+
+//data class FileContent(
+//    val modelName
+//)
+//
+//data class LineContent(
+//    val isVideo: Boolean,
+//    val startTime: Int,
+//    val endTime: Int
+//)
