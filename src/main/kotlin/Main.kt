@@ -22,7 +22,7 @@ fun main(args: Array<String>) {
     }
     results.sortBy { abs(it.second) }
     results.forEach {
-        println(it)
+        println("Errors: ${it.second} Algo: ${it.first.removePrefix(rootDir)}")
     }
 }
 
@@ -66,7 +66,9 @@ private fun countErrorsInFile(file: File): Int {
     }
     val batteriesInModel = countWordOccurrencesInString(text, "Model") - counterOfBatteriesToExclude
     val batteriesInVideo = countWordOccurrencesInString(text, "Video")
-    return abs(batteriesInModel - batteriesInVideo)
+    var errors = batteriesInModel - batteriesInVideo
+    if (errors < 1) errors *= 2
+    return abs(errors)
 }
 
 /**
