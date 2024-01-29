@@ -1,15 +1,21 @@
 import java.io.File
 import kotlin.math.abs
 
-lateinit var rootPath: String
-const val minTimeBetweenBatteries = 30
+lateinit var rootDir: String //set via command line argument
+var minTimeBetweenBatteries: Int = 30 //can be changed via command line argument
 
+/**
+ * Walks through all folders of the [rootDir]. For each model folder, [evalAlgorithm] will be called. and the results are put into a list.
+ * Prints the list at the end, ordered by number of errors (the best algorithms will be printed first)
+ */
 fun main(args: Array<String>) {
-    rootPath = args[0]
-    val results = mutableListOf<Pair<String, Int>>()
-    File(rootPath).walk().forEach {
+    rootDir = args[0]
+    minTimeBetweenBatteries = args[1].toInt()
 
-        if (it.isDirectory && (it.name == "bayes" || it.name == "default")) {
+    val results = mutableListOf<Pair<String, Int>>()
+    File(rootDir).walk().forEach {
+
+        if (it.isModelFolder()) {
             val result = Pair(it.path, evalAlgorithm(it))
             results.add(result)
         }
@@ -20,21 +26,36 @@ fun main(args: Array<String>) {
     }
 }
 
+/**
+ * true for folders named "bayes" and "default"
+ */
+private fun File.isModelFolder() : Boolean {
+    return isDirectory && (name == "bayes" || name == "default")
+}
 
-fun evalAlgorithm(dir: File): Int {
+
+/**
+ * evaluates the algorithm
+ * @return the number of false positives + false negatives
+ */
+private fun evalAlgorithm(dir: File): Int {
     var errorCounter = 0
     dir.walk().forEach {
         if (it.isFile && it.extension == "txt") {
             if (it.name.contains("SSG_montage2")) return@forEach
-            val counts = countModelAndVideoOccurrencesInFile(it)
-            val errors = abs(counts.first-counts.second)
+            val errors = countErrorsInFile(it)
             errorCounter += errors
         }
     }
     return errorCounter
 }
 
-fun countModelAndVideoOccurrencesInFile(file: File): Pair<Int, Int> {
+/**
+ * counts occurrences of the "words" model and "video" in the file.
+ * Excludes too frequent battery occurrences in the model based on [minTimeBetweenBatteries]
+ * @return the difference between numbers of batteries in model and in video (after excluding too frequent occurrences of model batteries)
+ */
+private fun countErrorsInFile(file: File): Int {
     val text = file.readText()
     val modelTimes = readStartAndEndTimesModel(text)
     var counterOfBatteriesToExclude = 0
@@ -43,13 +64,15 @@ fun countModelAndVideoOccurrencesInFile(file: File): Pair<Int, Int> {
             counterOfBatteriesToExclude++
         }
     }
-    return Pair(countWordOccurrencesInString(text, "Model") - counterOfBatteriesToExclude, countWordOccurrencesInString(text, "Video"))
+    val batteriesInModel = countWordOccurrencesInString(text, "Model") - counterOfBatteriesToExclude
+    val batteriesInVideo = countWordOccurrencesInString(text, "Video")
+    return abs(batteriesInModel - batteriesInVideo)
 }
 
 /**
  * @return pair.first: startNumber, pair.second: endNumber
  */
-fun readStartAndEndTimesModel(string: String): List<Pair<Int, Int>> {
+private fun readStartAndEndTimesModel(string: String): List<Pair<Int, Int>> {
     val list = mutableListOf<Pair<Int, Int>>()
     string.lines().forEach {
         if (it.contains("Video")) return@forEach
@@ -61,7 +84,10 @@ fun readStartAndEndTimesModel(string: String): List<Pair<Int, Int>> {
     return list
 }
 
-fun getNumbersFromString(input: String): Pair<Int?, Int?> {
+/**
+ * reads a pair of two Integers if they are in a string
+ */
+private fun getNumbersFromString(input: String): Pair<Int?, Int?> {
     val regex = Regex("\\d+")
     val matches = regex.findAll(input)
 
@@ -69,33 +95,25 @@ fun getNumbersFromString(input: String): Pair<Int?, Int?> {
 
     return when (numbers.size) {
         2 -> Pair(numbers[0], numbers[1])
-        1 -> Pair(numbers[0], null)
         else -> Pair(null, null)
     }
 }
 
-fun countWordOccurrencesInString(str: String, searchStr: String): Int {
+/**
+ * counts times a word is contained in a string
+ */
+private fun countWordOccurrencesInString(str: String, word: String): Int {
     var count = 0
     var startIndex = 0
 
     while (startIndex < str.length) {
-        val index = str.indexOf(searchStr, startIndex)
+        val index = str.indexOf(word, startIndex)
         if (index >= 0) {
             count++
-            startIndex = index + searchStr.length
+            startIndex = index + word.length
         } else {
             break
         }
     }
     return count
 }
-
-//data class FileContent(
-//    val modelName
-//)
-//
-//data class LineContent(
-//    val isVideo: Boolean,
-//    val startTime: Int,
-//    val endTime: Int
-//)
